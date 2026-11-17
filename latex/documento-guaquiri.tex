@@ -1,0 +1,324 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-tabla]{babel}
+\usepackage{newtxtext}
+\usepackage{amsmath,amssymb}
+\usepackage{geometry}
+\usepackage{setspace}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{enumitem}
+\usepackage{csquotes}
+\usepackage[hidelinks]{hyperref}
+
+\geometry{margin=2.54cm}
+\onehalfspacing
+\setlist[enumerate]{itemsep=0.25em, topsep=0.35em}
+\setlist[itemize]{itemsep=0.2em, topsep=0.3em}
+\hypersetup{
+  pdftitle={Red de distribución de internet en Guaquirí: un modelo con grafos ponderados},
+  pdfauthor={Jesús Eduardo Pertuz Perea, Kevin Salazar, Julián García, Julián Esteban, Christian}
+}
+
+\title{Red de distribución de internet en Guaquirí: un modelo con grafos ponderados}
+\author{Jesús Eduardo Pertuz Perea, Kevin Salazar,\\
+Julián García, Julián Esteban y Christian\\[0.4em]
+Universidad del Norte\\
+Curso de Matemáticas Discretas}
+\date{28 de octubre de 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+Guaquirí, corregimiento de Pedraza (Magdalena), no queda comunicado porque se instale una antena en una sola casa. El problema que modela el programa es cómo llegar desde esa casa principal hasta las demás viviendas. La entrada son coordenadas. La cuenta central es la distancia geodésica entre puntos. Con esas distancias se arma un grafo no dirigido \(G=(V,E,w)\), con \(|V|=24\) y \(|E|=276\), y el peso de cada arista es su longitud en metros. Si el tramo no pasa de 100~m, el enlace es cable; si lo pasa, es un radioenlace. Kruskal y Prim construyen un árbol de 23 aristas y 870,7~m. Una estrella que una la casa principal con cada punto, uno por uno, suma 2.247,4~m. Dijkstra responde otra pregunta del mismo mapa: el camino desde la antena hasta la vivienda que se elige. El programa es el modelo de esa decisión. Las coordenadas de prueba se pueden cambiar el día en que haya un levantamiento.
+
+\vspace{0.6em}
+\noindent\textit{Palabras clave:} grafo ponderado, distancia geodésica, árbol de expansión mínima, Kruskal, Prim, Dijkstra, Guaquirí
+\end{abstract}
+
+\section{Introducción}
+
+\subsection{Problema}
+
+En Guaquirí, corregimiento del municipio de Pedraza, en el Magdalena, las viviendas no están pegadas a un casco urbano con red cableada. La propuesta del proyecto es concentrar el acceso en la casa principal, con una antena Starlink, y desde ahí repartir la señal hacia el resto. La antena resuelve el tramo largo, el que sale del corregimiento. No resuelve los metros que hay entre esa casa y las otras.
+
+Esos metros son el problema discreto. Hay un conjunto finito de puntos. Hay que decidir qué pares se unen y cuáles no. Unir todos los pares sobra: muchas de esas líneas repiten un camino que ya existe. No unir los suficientes deja viviendas aisladas. El programa calcula, a partir de las coordenadas, la distancia de cada par y se queda con un conjunto de enlaces que conecta todos los puntos sin ciclos y con la menor longitud total.
+
+La casa principal es el único punto confirmado: \(10^{\circ}06'56{,}56''\)~N y \(74^{\circ}55'28{,}23''\)~O, a 11~m de elevación. Esa coordenada sale de Google Earth, del placemark de la casa principal, y se contrasta con Google Maps. La zona entra en el modelo porque el mapa de cobertura de Starlink (SpaceX) muestra servicio ahí: la antena se puede instalar en esa casa. Los otros 23 puntos son una red de prueba alrededor de ese origen: un núcleo cercano y tres grupos más retirados, al norte, al este y al suroeste. No son un censo de Guaquirí. Sirven para que el modelo corra con una forma parecida a la del asentamiento. Si más adelante se reemplazan por un levantamiento en el mismo mapa, el programa no cambia de lógica: vuelve a medir distancias y vuelve a armar el grafo.
+
+\subsection{Impacto}
+
+Sin un enlace desde la casa principal, la antena queda en una sola vivienda. El corregimiento sigue dependiendo de desplazarse hasta Pedraza, o de una señal que no llega a la casa de al lado. Para el curso, el impacto se lee en la decisión que el modelo permite tomar antes de tender nada: cuántos metros de enlace hacen falta, qué tramos caben en cable y cuáles, por la distancia, pasan a radio.
+
+El proyecto, hoy, es ese modelo. No es una obra contratada. Puede volverse un proyecto de instalación si las coordenadas de prueba se cambian por las casas reales y se revisa en terreno el árbol que el programa dibuja. La historia del documento y la del ejecutable es la misma: distancia desde la casa principal, grafo ponderado, árbol de expansión mínima y camino hasta la vivienda elegida.
+
+\subsection{Objetivos}
+
+El objetivo general es modelar la red de Guaquirí como un grafo ponderado por la distancia y obtener, con el programa, un árbol que conecte la casa principal con el resto de puntos usando la menor longitud total.
+
+Los objetivos específicos son los siguientes.
+
+\begin{enumerate}
+  \item Definir los vértices, las aristas posibles y el peso como la distancia geodésica entre cada par.
+  \item Separar, con el umbral de 100~m, el enlace de cable del radioenlace.
+  \item Construir la matriz y la lista de adyacencia de esas distancias.
+  \item Calcular el árbol de expansión mínima con Kruskal y con Prim, y compararlo con la malla completa y con la estrella salida de la casa principal.
+  \item Calcular, con Dijkstra, el camino desde la casa principal hasta una vivienda.
+  \item Dejar explícito qué parte del cálculo usa datos confirmados y qué parte usa la red de prueba.
+\end{enumerate}
+
+\section{Modelación con la teoría del curso}
+
+\subsection{Grafo}
+
+El grafo es simple, no dirigido y ponderado:
+\begin{equation}
+  G = (V, E, w), \qquad w(e) = d(e).
+  \label{eq:grafo}
+\end{equation}
+\(d(e)\) es la distancia geodésica de la arista, en metros. No hay lazos ni dos enlaces entre el mismo par. La dirección no importa: la distancia de \(u\) a \(v\) es la de \(v\) a \(u\).
+
+\(V\) tiene 24 vértices. Uno es la casa principal, llamada \(s\), donde iría la antena. Tres son repetidores, puestos a 55~m al norte, a 60~m al este y 10~m al sur, y a 45~m al oeste y 35~m al sur del origen. Doce viviendas están en el núcleo, a menos de 50~m de \(s\). Ocho están en la periferia, entre 190~m y 221~m. Por tanto \(|V| = 24\).
+
+La malla candidata une todos los pares. No se borra un enlace antes de medirlo, porque podría ser el tramo corto que conecta un grupo:
+\begin{equation}
+  |E| = \binom{24}{2} = 276.
+  \label{eq:aristas}
+\end{equation}
+
+\subsection{Distancia}
+
+La longitud no se lee en línea recta sobre el dibujo del mapa. El programa mide la distancia geodésica sobre la esfera de radio medio \(R = 6\,371\,008{,}8\)~m, con las coordenadas tomadas de Google Earth. Para dos puntos de latitudes \(\varphi_1,\varphi_2\) y longitudes \(\lambda_1,\lambda_2\),
+\begin{equation}
+  \begin{aligned}
+    a &= \sin^{2}\!\left(\frac{\Delta\varphi}{2}\right)
+        + \cos\varphi_1\cos\varphi_2\sin^{2}\!\left(\frac{\Delta\lambda}{2}\right),\\
+    d(u,v) &= 2R\arcsin\sqrt{a},
+  \end{aligned}
+  \label{eq:haversine}
+\end{equation}
+con \(\Delta\varphi = \varphi_2 - \varphi_1\) y \(\Delta\lambda = \lambda_2 - \lambda_1\).
+
+Las viviendas de prueba no traen latitud y longitud propias. Se arman desplazando \(s\). Si el desplazamiento es \(x\) metros al este y \(y\) metros al norte,
+\begin{equation}
+  \rho = \sqrt{x^{2} + y^{2}}, \qquad \theta = \operatorname{atan2}(x,y),
+  \label{eq:offset}
+\end{equation}
+y el vértice queda a \(\rho\) metros del origen con rumbo \(\theta\). Si \(\rho = 0\), el vértice es la casa principal. Esa es la entrada del programa: una lista de desplazamientos, un origen confirmado y, de ahí, 276 distancias.
+
+\subsection{Umbral de 100 metros}
+
+La distancia también decide el medio. Ethernet de exteriores, en el criterio que usa el programa, se considera viable hasta 100~m. Pasado ese valor, el tramo se marca como radioenlace de 5~GHz:
+\begin{equation}
+  \text{medio}(e) =
+  \begin{cases}
+    \text{cable UTP} & \text{si } d(e) \le 100,\\
+    \text{radio 5\,GHz} & \text{si } d(e) > 100.
+  \end{cases}
+  \label{eq:medio}
+\end{equation}
+De las 276 aristas, 124 quedan en cable y 152 en radio. El peso con el que Kruskal y Prim ordenan las aristas sigue siendo \(d(e)\), no un precio. Entre dos cables gana el más corto. Entre dos radios, también. Y todo cable de esta red es más corto que todo radio, porque el cable se corta en 100~m y el radio empieza después.
+
+Una tarifa se puede colgar después de esa misma regla: el metro de cable y un valor fijo por el par de radios. Sirve si el proyecto pasa a un presupuesto. No es lo que el programa optimiza, ni lo que este trabajo toma como peso del grafo. La ponderación pedida por el modelo es la distancia.
+
+\subsection{Matriz de adyacencia}
+
+Ordenamos \(V = \{v_1,\ldots,v_{24}\}\). La matriz de adyacencia guarda la distancia de cada par:
+\begin{equation}
+  M_{ij} =
+  \begin{cases}
+    0 & \text{si } i = j,\\
+    d(v_i,v_j) & \text{si } i \neq j.
+  \end{cases}
+  \label{eq:matriz}
+\end{equation}
+La diagonal es 0 porque no hay lazo. Fuera de la diagonal no hay casillas vacías: la malla es completa, y \(M_{ij} = M_{ji}\). La lista de adyacencia dice lo mismo en otro formato. En la malla, cada vértice tiene grado 23. En el árbol, el grado baja al número de enlaces que de verdad se usan.
+
+La fila de la casa principal es la que el programa muestra cuando se pregunta por la distancia hasta la antena. La vivienda más cercana, la~01, está a 22,8~m. La vivienda~03 está a 28,8~m. Los tres repetidores quedan entre 55,0~m y 60,8~m. La vivienda más lejana de la red de prueba está a 221,1~m. Esas cifras son distancias directas. No son todavía el camino por el árbol.
+
+\subsection{El árbol que se busca}
+
+Conectar los 24 vértices sin ciclos exige 23 aristas. Si \(T\) recorre esos árboles, el problema es
+\begin{equation}
+  T^{\star} \in \arg\min_{T} \sum_{e \in T} d(e).
+  \label{eq:mst}
+\end{equation}
+\(T^{\star}\) es un árbol de expansión mínima: la red conexa de menor longitud total. La malla completa también conecta, pero suma 40.355,8~m porque cuenta cada par, incluso los radios largos que nadie necesita a la vez. La otra red de 23 aristas, útil para comparar, es la estrella: un enlace directo de \(s\) a cada uno de los otros 23 puntos. Esa estrella suma 2.247,4~m.
+
+\section{Solución: algoritmos y datos}
+
+\subsection{Qué hace el programa}
+
+El ejecutable sigue cinco pasos, y los mismos cinco aparecen en este documento.
+
+\begin{enumerate}
+  \item Lee los vértices. La casa principal entra con la coordenada confirmada. El resto entra como metros al este y al norte de ese origen, y el programa los convierte con \eqref{eq:offset}.
+  \item Mide los 276 pares con \eqref{eq:haversine} y guarda \(w(e) = d(e)\).
+  \item Clasifica cada arista con \eqref{eq:medio}.
+  \item Construye el árbol con Kruskal o con Prim. Las dos opciones están en el programa. Sin un tope de puertos, las longitudes totales coinciden.
+  \item Si se elige una vivienda, calcula el camino desde \(s\) con Dijkstra y muestra la distancia directa a la casa principal junto con ese camino.
+\end{enumerate}
+
+La salida que se ve en el mapa son los puntos sobre la imagen satelital y las aristas del árbol. La salida numérica, para la vivienda elegida, es la distancia a \(s\) y la secuencia de enlaces. Agregar una vivienda nueva dispara otra vez los pasos 2 a 5: no hay una tabla de distancias escrita a mano.
+
+El mapa puede usarse con la imagen ya consultada. Los vértices, las distancias calculadas y el árbol quedan en el dispositivo. Eso importa en un corregimiento donde la señal no es continua: la cuenta de la red no depende de volver a descargar el mapa.
+
+\subsection{Kruskal}
+
+Kruskal ordena las aristas de menor a mayor distancia y recorre la lista una vez. Una arista entra si sus extremos siguen en componentes distintas. Si ya están en la misma, cierra un ciclo y se descarta. Cuando dos distancias empatan, el programa usa el identificador de la arista para que la corrida no cambie de un día a otro.
+
+La razón es la propiedad de ciclo. En un ciclo, si una arista es estrictamente más larga que las demás, no pertenece a ningún árbol de expansión mínima: se puede cambiar por otra del ciclo y la longitud total baja.
+
+En los datos el caso es pequeño. La casa principal y la vivienda~01 están a 22,8~m. La vivienda~01 y la vivienda~05 están a 22,8~m. Esas dos aristas entran, porque unen componentes distintas. La casa principal y la vivienda~05 están a 38,0~m en línea directa. Cuando Kruskal llega a esa arista, la vivienda~05 ya está unida a la casa por la vivienda~01, así que los 38,0~m se rechazan. El ciclo casa--01--05 pierde su lado más largo.
+
+Para saber si dos extremos siguen separados se usa una estructura de conjuntos disjuntos, con compresión de caminos y unión por rango. Cada consulta es, en la práctica, constante. El tiempo lo pone el ordenamiento de las 276 distancias:
+\begin{equation}
+  O(|E|\log |E|).
+  \label{eq:tkruskal}
+\end{equation}
+
+\subsection{Prim}
+
+Prim no mira primero la arista más corta de todo el mapa. Hace crecer un solo árbol desde la casa principal, que es el único equipo ya decidido. En cada paso toma la arista más corta que sale de lo ya alcanzado hacia un vértice que todavía está fuera. Esa es la propiedad de corte: a través del corte entre lo conectado y lo que falta, una arista de longitud mínima pertenece a algún árbol mínimo.
+
+El primer paso muestra la diferencia con Kruskal. La arista más corta de toda la malla mide 15,3~m y une el repetidor norte con la vivienda~06. Kruskal la acepta de entrada. Prim, arrancando en \(s\), todavía no la ve. La arista más corta que sale de la casa principal mide 22,8~m y llega a la vivienda~01: esa es la primera del árbol de Prim. El orden cambia. La longitud total, en este grafo conexo, no: los dos algoritmos dan 870,7~m y 23 aristas. La cola de Prim es un montículo binario. El costo de tiempo queda otra vez en \(O(|E|\log |E|)\).
+
+\subsection{Puertos}
+
+Un equipo real no acepta tantos cables como vecinos tenga en la malla. En el programa, la casa principal y cada repetidor admiten hasta 8 enlaces del árbol, y cada vivienda hasta 4. Si un extremo ya llenó ese cupo, la arista se salta aunque no cierre un ciclo.
+
+Ese salto ya no está cubierto por la propiedad de ciclo ni por la de corte. Esas dos propiedades hablan del árbol más corto sin límite de grado. Con límite, la regla es una heurística: puede conectar todo, puede dejar un punto por fuera, y la longitud que devuelva no tiene garantía de ser la mínima.
+
+En la red de prueba el cupo de 8 y de 4 no cambia el árbol. La casa principal queda con grado 2, y ninguna vivienda pasa de grado 3. El árbol de 870,7~m cabe en los puertos. Si el cupo de una vivienda fuera más chico que su grado en ese árbol, el programa tendría que soltar una arista corta y buscar otra más larga. Ahí el resultado dejaría de ser \(T^{\star}\).
+
+\subsection{Dijkstra}
+
+La longitud total del árbol dice qué se construye. Otra pregunta es, ya mirando el mapa, cómo se llega desde la casa principal hasta una vivienda. Dijkstra resuelve el camino de menor peso desde un origen cuando los pesos son positivos.
+
+En el programa ese peso no es el precio. Es una penalización que crece con la distancia. En cable suma \(0{,}04\) por metro. En radio suma 12 unidades por el salto y después \(0{,}02\) por metro:
+\begin{equation}
+  a(e) =
+  \begin{cases}
+    0{,}04\, d(e) & \text{si } d(e) \le 100,\\
+    12 + 0{,}02\, d(e) & \text{si } d(e) > 100.
+  \end{cases}
+  \label{eq:aten}
+\end{equation}
+Un cable de 23~m queda cerca de 0,9. Un radio de 190~m queda cerca de 15,8. Como \(a(e) > 0\), la primera vez que una vivienda sale de la cola su valor queda fijo. El tiempo, con montículo binario, es
+\begin{equation}
+  O\bigl((|V| + |E|)\log |V|\bigr).
+  \label{eq:tdijkstra}
+\end{equation}
+
+Dijkstra, en el ejecutable, corre sobre las 276 aristas, no solo sobre las 23 del árbol. Por eso el camino que marca hasta una vivienda lejana puede ser el radio directo, aunque ese radio no esté en el árbol. El árbol prefiere un solo salto largo por grupo y cables cortos adentro, porque así la suma de distancias es menor. El camino de menor \(a(e)\) prefiere no atravesar varias casas si un salto directo penaliza menos. Las dos cuentas usan la distancia. No responden la misma pregunta, y el programa las muestra por separado: el árbol en el mapa, y el camino cuando se elige una vivienda.
+
+\section{Resultados e interpretación}
+
+La malla mide 40.355,8~m en 276 aristas. El árbol de Kruskal, y el de Prim con la misma longitud, mide 870,7~m en 23 aristas. La estrella desde la casa principal, también de 23 aristas, mide 2.247,4~m. La diferencia entre estrella y árbol es 1.376,7~m, un 61,3\,\% menos de longitud. No se ahorran aristas: se ahorran metros, porque el árbol une vecinos cercanos en lugar de traer cada punto hasta \(s\).
+
+\begin{table}[ht]
+  \centering
+  \caption{Longitud de las redes sobre los mismos 24 vértices}
+  \label{tab:longitud}
+  \begin{tabular}{lrr}
+    \toprule
+    Red & Aristas & Longitud (m) \\
+    \midrule
+    Malla completa & 276 & 40.355,8 \\
+    Estrella desde la casa principal & 23 & 2.247,4 \\
+    Árbol de Kruskal y de Prim & 23 & 870,7 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+De esos 870,7~m, cerca de 443~m son cable, en tramos de 15,3~m a 32,0~m, y cerca de 428~m son tres radios. Los tres radios no salen de la antena. Salen del borde de cada grupo, que es el salto más corto que une ese grupo con el resto:
+
+\begin{table}[ht]
+  \centering
+  \caption{Distancias de los tres grupos respecto de la casa principal}
+  \label{tab:grupos}
+  \begin{tabular}{lcc}
+    \toprule
+    Grupo & Repetidor a \(s\) (m) & Radio del árbol (m) \\
+    \midrule
+    Norte & 55,0 & 135,2 \\
+    Este & 60,8 & 135,8 \\
+    Suroeste & 57,0 & 157,0 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Dentro de cada grupo las viviendas se unen entre sí con cable, porque esas distancias quedan bajo 100~m. Al norte, el radio de 135,2~m llega a la primera vivienda alejada y de ahí salen cables de 25,0~m y 28,3~m. Al este, el radio de 135,8~m entra al grupo y los cables internos miden 25,5~m y 29,7~m. Al suroeste, el radio de 157,0~m cierra el grupo y el cable interno mide 32,0~m. La casa principal solo necesita dos cables directos, de 22,8~m y 28,8~m, hacia las viviendas~01 y~03. Los repetidores, que están a unos 55--61~m, se alcanzan por el núcleo. La figura~\ref{fig:esquema} resume esa forma.
+
+\begin{figure}[ht]
+  \centering
+  \begin{tikzpicture}[
+    nodo/.style={circle, draw, minimum size=8mm, inner sep=0pt, font=\small},
+    casa/.style={circle, draw, thick, minimum size=9mm, inner sep=0pt, font=\small},
+    cable/.style={thick},
+    radio/.style={thick, dashed}
+  ]
+    \node[casa] (s) at (0,0) {$s$};
+    \node[nodo] (v) at (2.1,0) {$V$};
+    \node[nodo] (n) at (4.2,1.35) {N};
+    \node[nodo] (e) at (4.2,0) {E};
+    \node[nodo] (o) at (4.2,-1.35) {SO};
+    \node[nodo] (hn) at (6.4,1.35) {$H$};
+    \node[nodo] (he) at (6.4,0) {$H$};
+    \node[nodo] (ho) at (6.4,-1.35) {$H$};
+    \draw[cable] (s) -- (v);
+    \draw[cable] (v) -- (n);
+    \draw[cable] (v) -- (e);
+    \draw[cable] (v) -- (o);
+    \draw[radio] (n) -- (hn);
+    \draw[radio] (e) -- (he);
+    \draw[radio] (o) -- (ho);
+  \end{tikzpicture}
+  \caption{Esquema del árbol. \(s\) es la casa principal, \(V\) el núcleo, N/E/SO los repetidores y \(H\) una vivienda del grupo lejano. La línea continua es un tramo de a lo sumo 100~m. La discontinua es el radio del grupo.}
+  \label{fig:esquema}
+\end{figure}
+
+La lectura, en distancia, es esta. Conviene llevar la señal de vecino en vecino mientras el tramo quepa en 100~m. Conviene un solo radio por grupo lejano, el más corto que enganche ese grupo, y no un radio desde la casa principal hasta cada vivienda de la periferia. Esas viviendas están entre 190,2~m y 221,1~m de \(s\). Ocho radios directos sumarían alrededor de 1.655~m solo en la periferia. Los tres radios del árbol suman 428~m, y el resto del grupo se recorre con cables de unas pocas decenas de metros.
+
+Dijkstra no anula esa lectura. Sobre la malla, la vivienda alejada que está a 190,2~m de la antena obtiene \(a(e) = 12 + 0{,}02 \cdot 190{,}2 = 15{,}8\), que es el radio directo. El camino por el árbol es más largo en esa penalización, porque primero recorre el núcleo. El programa muestra las dos cosas: la distancia directa a la casa principal, y el camino de menor \(a(e)\). Para decidir qué enlaces existen, manda el árbol de \eqref{eq:mst}.
+
+\section{Conclusiones y limitaciones}
+
+El objetivo se cumple en la red de prueba. El problema queda escrito como \eqref{eq:mst}, con el peso igual a la distancia de \eqref{eq:haversine} y el medio decidido por \eqref{eq:medio}. Kruskal y Prim entregan la misma longitud, 870,7~m, en 23 aristas y una sola componente. Frente a la estrella salida de la casa principal, el árbol usa 1.376,7~m menos.
+
+Lo que el modelo sostiene, y lo que el programa vuelve a calcular si se mueve un punto, es la lógica. Los tramos cortos se quedan en cable. Los grupos que pasan de 100~m se enganchan con un radio, no con un enlace por vivienda. La casa principal no necesita una línea hasta cada vecino: le bastan los enlaces que el árbol deja salir de \(s\), y la distancia a cada vivienda se lee desde ahí.
+
+Los límites son de datos, no del algoritmo.
+
+\begin{enumerate}
+  \item Solo la casa principal tiene coordenada confirmada. Los otros 23 puntos son una red de prueba. Un levantamiento en Guaquirí cambia las distancias y puede pasar un tramo de un lado a otro del umbral de 100~m.
+  \item El umbral de 100~m es el criterio del modelo para separar cable y radio. No incluye postes, obstáculos ni la energía del equipo.
+  \item La penalización \eqref{eq:aten} crece con los metros, pero no es una medición de señal. Sirve para comparar caminos dentro del programa.
+  \item El árbol usa viviendas intermedias. Eso supone que en esa casa se puede dejar pasar el enlace. La distancia no cuenta ese equipo.
+  \item El cupo de puertos no altera este árbol. Con un cupo menor, la heurística puede alargar la red y el resultado ya no es el árbol de longitud mínima.
+  \item Starlink entra como el origen \(s\). El programa reparte el acceso entre las casas. No calcula la capacidad del enlace satelital.
+\end{enumerate}
+
+El documento y el ejecutable cuentan la misma historia. La problemática es conectar Guaquirí a partir de la casa principal. La ponderación es la distancia. Kruskal y Prim deciden qué enlaces alcanzan a todos con la menor longitud. Dijkstra muestra el camino desde esa casa hasta la vivienda que se consulta. Si el proyecto pasa de la red de prueba a las casas reales, se cambian las coordenadas y se deja el mismo funcionamiento.
+
+\section*{Fuentes de los datos}
+
+Los datos de ubicación salen de Google Earth y de Google Maps: la casa principal está en el placemark confirmado del proyecto, en Guaquirí, corregimiento de Pedraza (Magdalena). La decisión de partir de una antena en esa casa se apoya en el mapa de cobertura de Starlink, de SpaceX, que indica servicio en la zona. El programa no toma las distancias de una bibliografía: las calcula sobre esas coordenadas.
+
+\section*{Repositorio y página}
+
+El código del programa y la página donde se abre están publicados para la entrega.
+
+\begin{itemize}
+  \item Repositorio: \url{https://github.com/jpertuzperea58-spec/guaquiri-connect}
+  \item Página: \url{https://jpertuzperea58-spec.github.io/guaquiri-connect/}
+\end{itemize}
+
+El repositorio contiene el código, las pruebas de Kruskal, Prim y Dijkstra, y este documento. La página abre el mismo programa: el mapa, el árbol de distancias y el camino desde la casa principal.
+
+\end{document}

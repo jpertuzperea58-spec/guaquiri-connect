@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Código y modelos · Guaquirí Connect</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #1c1915;
+      --muted: #5c564c;
+      --line: #e4ddd2;
+      --paper: #f7f3ec;
+      --card: #fffdf9;
+      --green: #1f6b4a;
+      --green-soft: #e7f3ec;
+      --blue: #1e4d7b;
+      --blue-soft: #e7f0f8;
+      --amber: #8a5a12;
+      --amber-soft: #fbf3e4;
+      --code: #221e1a;
+      --code-bg: #1c1915;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: "Source Sans 3", "Segoe UI", sans-serif;
+      font-size: 18px;
+      line-height: 1.55;
+    }
+    header.top {
+      background: var(--ink);
+      color: #f6f1e8;
+      padding: 48px 24px 36px;
+    }
+    header.top .wrap, main, nav.toc .wrap { max-width: 980px; margin: 0 auto; }
+    .kicker {
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      font-size: 12px;
+      font-weight: 700;
+      color: #c8bfb0;
+      margin: 0 0 10px;
+    }
+    h1 {
+      font-family: "Source Serif 4", Georgia, serif;
+      font-weight: 650;
+      font-size: clamp(32px, 5vw, 48px);
+      line-height: 1.12;
+      margin: 0 0 12px;
+      letter-spacing: -0.02em;
+    }
+    header.top p { margin: 0; max-width: 68ch; color: #e7e0d4; }
+    nav.toc {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: rgba(247, 243, 236, 0.94);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(8px);
+    }
+    nav.toc .wrap {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 10px 16px;
+    }
+    nav.toc a {
+      flex: 0 0 auto;
+      text-decoration: none;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      background: var(--card);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    main { padding: 28px 18px 80px; }
+    section { margin: 0 0 28px; }
+    h2 {
+      font-family: "Source Serif 4", Georgia, serif;
+      font-size: 30px;
+      margin: 8px 0 8px;
+      letter-spacing: -0.02em;
+    }
+    h3 { margin: 22px 0 6px; font-size: 20px; }
+    p { margin: 0 0 12px; }
+    .lead { font-size: 20px; }
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      margin: 16px 0 8px;
+    }
+    .step {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      min-height: 108px;
+    }
+    .step b { display: block; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--green); margin-bottom: 6px; }
+    .step span { display: block; font-size: 15px; line-height: 1.35; }
+    .grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 14px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 16px 18px;
+    }
+    .tag {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      border-radius: 999px;
+      padding: 3px 8px;
+      margin-bottom: 8px;
+    }
+    .tag.g { background: var(--green-soft); color: var(--green); }
+    .tag.b { background: var(--blue-soft); color: var(--blue); }
+    .tag.a { background: var(--amber-soft); color: var(--amber); }
+    table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 12px; overflow: hidden; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 16px; }
+    th { font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+    code, .file { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.86em; }
+    .file { color: var(--blue); }
+    pre {
+      background: var(--code-bg);
+      color: #f3ecdf;
+      border-radius: 14px;
+      padding: 16px 16px 14px;
+      overflow-x: auto;
+      line-height: 1.45;
+      font-family: "IBM Plex Mono", ui-monospace, monospace;
+      font-size: 13.5px;
+      margin: 10px 0 0;
+    }
+    pre .c { color: #b7c7a8; }
+    pre .k { color: #f0c27a; }
+    pre .s { color: #f2d3b3; }
+    .note {
+      border-left: 4px solid var(--green);
+      background: var(--green-soft);
+      padding: 10px 14px;
+      border-radius: 0 12px 12px 0;
+      margin: 12px 0;
+    }
+    .warn {
+      border-left: 4px solid var(--amber);
+      background: var(--amber-soft);
+      padding: 10px 14px;
+      border-radius: 0 12px 12px 0;
+      margin: 12px 0;
+    }
+    ol.clean { margin: 8px 0 0; padding-left: 1.2em; }
+    ol.clean li { margin: 0 0 6px; }
+    @media (max-width: 800px) {
+      .flow, .grid { grid-template-columns: 1fr; }
+      body { font-size: 17px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <p class="kicker">Guaquirí Connect · Matemáticas discretas</p>
+      <h1>Dónde está cada modelo en el código</h1>
+      <p>La interfaz dibuja el mapa. La matemática está en <span class="file" style="color:#d7ecdf">src/math/</span> y se ejecuta desde <span class="file" style="color:#d7ecdf">NetworkContext.tsx</span>. El peso del grafo es la distancia en metros entre la casa principal y el resto de puntos.</p>
+    </div>
+  </header>
+  <nav class="toc">
+    <div class="wrap">
+      <a href="#flujo">Recorrido</a>
+      <a href="#mapa">Archivos</a>
+      <a href="#vertices">Vértices</a>
+      <a href="#distancia">Distancia</a>
+      <a href="#grafo">Grafo</a>
+      <a href="#kruskal">Kruskal</a>
+      <a href="#prim">Prim</a>
+      <a href="#dijkstra">Dijkstra</a>
+      <a href="#une">Quién lo une</a>
+    </div>
+  </nav>
+  <main>
+    <section id="flujo">
+      <h2>Recorrido del programa</h2>
+      <p class="lead">Cada vez que cambia una casa, el programa repite estos cinco pasos. No hay una tabla de distancias escrita a mano.</p>
+      <div class="flow">
+        <div class="step"><b>1. Vértices</b><span>Casa principal confirmada en Google Earth. Las otras 23 son una red de prueba.</span></div>
+        <div class="step"><b>2. Distancia</b><span>Haversine entre cada par. Eso es \(d(u,v)\) en metros.</span></div>
+        <div class="step"><b>3. Medio</b><span>Hasta 100 m, cable. Más de 100 m, radio de 5 GHz.</span></div>
+        <div class="step"><b>4. Árbol</b><span>Kruskal o Prim eligen 23 enlaces: la red más corta sin ciclos.</span></div>
+        <div class="step"><b>5. Camino</b><span>Al elegir una vivienda, Dijkstra marca cómo se llega desde la antena.</span></div>
+      </div>
+    </section>
+
+    <section id="mapa">
+      <h2>Mapa de archivos</h2>
+      <table>
+        <thead><tr><th>Archivo</th><th>Qué modelo aplica</th></tr></thead>
+        <tbody>
+          <tr><td><span class="file">src/data/community.ts</span></td><td>El conjunto \(V\): 24 puntos. Solo la casa principal está confirmada.</td></tr>
+          <tr><td><span class="file">src/math/spatial.ts</span></td><td>Haversine, umbral de 100 m y la penalización que usa Dijkstra.</td></tr>
+          <tr><td><span class="file">src/math/graph.ts</span></td><td>Arma \(E\) (276 aristas), la matriz y la lista de adyacencia.</td></tr>
+          <tr><td><span class="file">src/math/kruskal.ts</span></td><td>Árbol de expansión mínima ordenando aristas. Union-Find para no cerrar ciclos.</td></tr>
+          <tr><td><span class="file">src/math/prim.ts</span></td><td>El mismo árbol, creciendo desde la antena.</td></tr>
+          <tr><td><span class="file">src/math/dijkstra.ts</span></td><td>Camino de menor penalización desde la casa principal.</td></tr>
+          <tr><td><span class="file">src/context/NetworkContext.tsx</span></td><td>Llama a los tres algoritmos y guarda el resultado que ven el mapa y el diagrama.</td></tr>
+        </tbody>
+      </table>
+      <div class="warn">Pagos, QR y tickets de soporte no forman parte del grafo. Están en <span class="file">src/lib/voucher.ts</span> y en <span class="file">src/components/portal/</span>.</div>
+    </section>
+
+    <section id="vertices">
+      <h2>1. Vértices \(V\)</h2>
+      <div class="grid">
+        <div class="card">
+          <span class="tag g">Datos</span>
+          <p>La casa principal sale de Google Earth: 10°06'56,56" N, 74°55'28,23" O. El código la guarda en grados decimales. Los demás puntos se mueven desde ese origen unos metros al este y al norte.</p>
+          <p>Hay 1 antena, 3 repetidores y 20 viviendas. \(|V| = 24\).</p>
+        </div>
+        <div class="card">
+          <span class="tag a">Archivo</span>
+          <p><span class="file">src/data/community.ts</span></p>
+          <p><span class="file">offsetMeters</span> en <span class="file">spatial.ts</span> convierte esos metros en latitud y longitud. Si el desplazamiento es 0, el punto es la casa principal.</p>
+        </div>
+      </div>
+      <pre><span class="c">// community.ts — único punto confirmado (Google Earth)</span>
+export const CONFIRMED_CENTROID = {
+  lat: 10 + 6 / 60 + 56.56 / 3600,   <span class="c">// 10°06'56,56" N</span>
+  lng: -(74 + 55 / 60 + 28.23 / 3600) <span class="c">// 74°55'28,23" O</span>
+};
+export const GATEWAY_ID = "gw-principal";</pre>
+    </section>
+
+    <section id="distancia">
+      <h2>2. Distancia \(d(u,v)\)</h2>
+      <p>No se mide en línea recta sobre el dibujo del mapa. <span class="file">geodesicDistanceMeters</span> pide a Turf la fórmula de Haversine, en metros.</p>
+      <pre><span class="c">// spatial.ts — peso real del grafo: metros entre dos coordenadas</span>
+export function geodesicDistanceMeters(a, b) {
+  return distance(point([a.lng, a.lat]), point([b.lng, b.lat]), {
+    units: "meters",
+  });
+}</pre>
+      <h3>Umbral de 100 m</h3>
+      <p><span class="file">selectLink</span> no cambia la distancia. Solo decide el medio: cable si el tramo cabe en Ethernet, radio si no.</p>
+      <pre><span class="c">// spatial.ts — el medio depende de la distancia, no al revés</span>
+export const UTP_MAX_METERS = 100;
+
+export function selectLink(distanceMeters) {
+  if (distanceMeters &lt;= 100) {
+    return { type: "utp_outdoor", wireless: false }; <span class="c">// cable</span>
+  }
+  return { type: "ptp_5ghz", wireless: true };       <span class="c">// radio 5 GHz</span>
+}</pre>
+      <div class="note">El archivo también guarda un costo en pesos, proporcional a los metros en el cable y fijo en el radio. Kruskal ordena por ese costo y, si empatan, por la distancia. Como todo cable de esta red es más corto que todo radio, el árbol que sale es el de menor longitud.</div>
+      <h3>Penalización para el camino</h3>
+      <p>Dijkstra no minimiza plata. Suma una penalización que crece con los metros: 0,04 por metro de cable, o 12 más 0,02 por metro de radio.</p>
+      <pre><span class="c">// spatial.ts — peso de Dijkstra. Sigue siendo función de la distancia.</span>
+export function attenuationUnits(edge) {
+  if (edge.type === "ptp_5ghz") return 12 + edge.distanceMeters * 0.02;
+  if (edge.type === "fiber")    return 0.5 + edge.distanceMeters * 0.005;
+  return edge.distanceMeters * 0.04; <span class="c">// UTP</span>
+}</pre>
+    </section>
+
+    <section id="grafo">
+      <h2>3. El grafo \(G = (V, E)\)</h2>
+      <p><span class="file">buildCandidateEdges</span> une todos los pares. Con 24 vértices eso es \(\binom{24}{2} = 276\) aristas. Cada una guarda la distancia, el medio y si ya entró al árbol.</p>
+      <pre><span class="c">// graph.ts — la malla candidata es el grafo completo</span>
+export function buildCandidateEdges(nodes) {
+  const edges = [];
+  for (let i = 0; i &lt; nodes.length; i++) {
+    for (let j = i + 1; j &lt; nodes.length; j++) {
+      const distanceMeters = geodesicDistanceMeters(nodes[i], nodes[j]);
+      const link = selectLink(distanceMeters); <span class="c">// cable o radio</span>
+      edges.push({
+        source: nodes[i].id,
+        target: nodes[j].id,
+        distanceMeters,
+        type: link.type,
+        inMST: false,
+      });
+    }
+  }
+  return edges; <span class="c">// |E| = 276</span>
+}</pre>
+      <div class="grid">
+        <div class="card">
+          <span class="tag b">Matriz</span>
+          <p><span class="file">RuralGraph.adjacencyMatrix()</span> es simétrica. La diagonal vale 0 porque no hay lazo. El panel «Modelo matemático» la muestra.</p>
+        </div>
+        <div class="card">
+          <span class="tag b">Lista</span>
+          <p><span class="file">adjacencyList()</span> guarda, para cada casa, sus vecinos. Prim y Dijkstra recorren esa lista, no la matriz.</p>
+        </div>
+      </div>
+      <p><span class="file">maxPortsFor</span> limita el grado en el árbol: 8 enlaces en la antena y en cada repetidor, 4 en cada vivienda. En esta red el árbol no llega a ese tope.</p>
+    </section>
+
+    <section id="kruskal">
+      <h2>4. Kruskal · árbol más corto</h2>
+      <p>Ordena las aristas de menor a mayor. Acepta la siguiente solo si sus extremos todavía no están conectados. Si ya lo están, la arista cierra un ciclo y se descarta. Esa es la propiedad de ciclo.</p>
+      <pre><span class="c">// kruskal.ts — el orden es el modelo: primero la arista más corta</span>
+const sorted = [...edges].sort((a, b) =&gt;
+  a.costCOP - b.costCOP ||          <span class="c">// entre cables, esto sigue a los metros</span>
+  a.distanceMeters - b.distanceMeters ||
+  a.id.localeCompare(b.id)
+);
+
+for (const edge of sorted) {
+  if (sets.find(left) === sets.find(right)) continue; <span class="c">// cierra ciclo: se rechaza</span>
+  sets.union(left, right);                             <span class="c">// une las dos componentes</span>
+  chosen.push({ ...edge, inMST: true });
+}</pre>
+      <div class="card">
+        <span class="tag g">Union-Find</span>
+        <p>La clase <span class="file">DisjointSet</span>, en el mismo archivo, responde «¿estos dos puntos ya quedaron en el mismo grupo?». <span class="file">find</span> comprime el camino. <span class="file">union</span> cuelga el árbol más bajo del más alto. Kruskal la usa solo para no aceptar un ciclo.</p>
+      </div>
+      <div class="note">Resultado en la red de prueba: 23 aristas y 870,7 m. Una estrella desde la casa principal, también de 23 aristas, mide 2.247,4 m.</div>
+    </section>
+
+    <section id="prim">
+      <h2>5. Prim · el árbol crece desde la antena</h2>
+      <p>No mira primero la arista más corta de todo el mapa. Empieza en <span class="file">gw-principal</span> y, en cada paso, toma la arista más corta que sale de lo ya alcanzado hacia una casa que todavía está fuera. Esa es la propiedad de corte.</p>
+      <pre><span class="c">// prim.ts — el conjunto inTree empieza solo con la casa principal</span>
+const inTree = new Set([startId]); <span class="c">// startId = "gw-principal"</span>
+pushFrom(startId);                  <span class="c">// mete a la cola las aristas que salen de la antena</span>
+
+while (heap.size &gt; 0 &amp;&amp; inTree.size &lt; nodes.length) {
+  const item = heap.pop();         <span class="c">// la más corta que cruza el corte</span>
+  if (inTree.has(item.next)) continue;
+  inTree.add(item.next);
+  chosen.push({ ...item.edge, inMST: true });
+  pushFrom(item.next);              <span class="c">// ahora también salen aristas desde la casa nueva</span>
+}</pre>
+      <p>La primera arista de Prim es casa principal → vivienda 01, a 22,8 m. La primera de Kruskal es otra: repetidor norte → vivienda 06, a 15,3 m. El orden cambia. La longitud total, en este grafo, no: los dos dan 870,7 m.</p>
+    </section>
+
+    <section id="dijkstra">
+      <h2>6. Dijkstra · camino desde la casa principal</h2>
+      <p>El árbol dice qué enlaces existen. Dijkstra dice, si se elige una vivienda, qué secuencia acumula menos penalización desde la antena. Parte con 0 en la casa principal y con infinito en el resto.</p>
+      <pre><span class="c">// dijkstra.ts — sourceId es la antena. weight es attenuationUnits.</span>
+dist.set(sourceId, 0);
+
+while (heap.size &gt; 0) {
+  const current = heap.pop();
+  if (current.d &gt; dist.get(current.id)) continue; <span class="c">// copia vieja de la cola</span>
+  for (const link of vecinos) {
+    const next = current.d + weight(link.edge);   <span class="c">// suma metros penalizados</span>
+    if (next &lt; dist.get(link.neighborId)) {
+      dist.set(link.neighborId, next);
+      prev.set(link.neighborId, { nodeId: current.id, edgeId: link.edge.id });
+      heap.push({ id: link.neighborId, d: next });
+    }
+  }
+}</pre>
+      <div class="warn">Dijkstra corre sobre las 276 aristas, no solo sobre las 23 del árbol. Por eso el camino hasta una casa lejana puede ser un radio directo, aunque ese radio no esté en el árbol. <span class="file">reconstructPath</span> arma la lista de casas. <span class="file">pathEdges</span> arma la lista de enlaces.</div>
+    </section>
+
+    <section id="une">
+      <h2>7. Quién llama a los tres algoritmos</h2>
+      <p>Un solo archivo encadena el modelo. El mapa y el diagrama solo leen lo que este contexto ya calculó.</p>
+      <pre><span class="c">// NetworkContext.tsx</span>
+const candidate = buildCandidateEdges(nodes);          <span class="c">// 276 distancias</span>
+
+const mstEdges = algorithm === "prim"
+  ? primMST(nodes, candidate, "gw-principal", limit)   <span class="c">// crece desde la antena</span>
+  : kruskalMST(ids, candidate, { maxDegree: limit });  <span class="c">// ordena todas las aristas</span>
+
+const result = dijkstra(nodes, candidate, "gw-principal", attenuationUnits);
+<span class="c">// reconstructPath(result, viviendaElegida) → casas del camino</span></pre>
+      <ol class="clean">
+        <li><span class="file">CoverageMap.tsx</span> dibuja los puntos sobre la imagen satelital y las aristas del árbol. Al tocar una vivienda muestra la distancia directa a la casa principal y el camino.</li>
+        <li><span class="file">TopologyView.tsx</span> muestra el mismo árbol como diagrama de nodos.</li>
+        <li><span class="file">AcademicModal.tsx</span> muestra \(|V|\), \(|E|\), la matriz y la lista del árbol.</li>
+      </ol>
+      <div class="note">Si se agrega una casa con un clic, <span class="file">buildCandidateEdges</span> vuelve a medir y Kruskal o Prim vuelven a armar el árbol. La lógica no cambia: cambian las coordenadas.</div>
+    </section>
+  </main>
+</body>
+</html>

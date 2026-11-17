@@ -1,0 +1,329 @@
+<html>
+<head>
+<meta charset="utf-8">
+<title>Código y modelos matemáticos — Guaquirí Connect</title>
+<style>
+  body { font-family: Calibri, sans-serif; font-size: 12pt; line-height: 1.35; color: #1c1915; }
+  h1 { font-family: "Calibri Light", Calibri, sans-serif; font-size: 26pt; color: #1f6b4a; margin-bottom: 4pt; }
+  h2 { font-family: Calibri, sans-serif; font-size: 18pt; color: #1e4d7b; margin-top: 22pt; border-bottom: 1px solid #d9d0c3; padding-bottom: 3pt; }
+  h3 { font-size: 14pt; color: #1f6b4a; margin-top: 14pt; }
+  p { margin: 0 0 8pt; }
+  .sub { color: #5c564c; font-size: 12pt; }
+  table { border-collapse: collapse; width: 100%; margin: 8pt 0 12pt; }
+  th, td { border: 1px solid #cfc6b8; padding: 6pt 8pt; vertical-align: top; }
+  th { background: #1f6b4a; color: white; text-align: left; }
+  pre { font-family: Consolas, monospace; font-size: 9.5pt; background: #f4f0e8; border: 1px solid #e0d8cc; padding: 8pt 10pt; white-space: pre-wrap; }
+  .note { background: #e7f3ec; border-left: 4px solid #1f6b4a; padding: 6pt 10pt; margin: 8pt 0; }
+  .warn { background: #fbf3e4; border-left: 4px solid #8a5a12; padding: 6pt 10pt; margin: 8pt 0; }
+  li { margin-bottom: 4pt; }
+</style>
+</head>
+<body>
+
+<h1>Código y modelos matemáticos de Guaquirí Connect</h1>
+<p class="sub">Universidad del Norte · Matemáticas discretas · Dónde está cada modelo y el código que lo calcula</p>
+<p>Este documento explica el programa que reparte la señal desde la casa principal de Guaquirí (corregimiento de Pedraza, Magdalena) hacia el resto de viviendas. La matemática no está en los botones ni en los pagos. Está en la carpeta <b>src/math/</b> y se ejecuta desde <b>src/context/NetworkContext.tsx</b>. El peso del grafo es la distancia en metros.</p>
+
+<h2>1. Qué problema resuelve</h2>
+<p>Instalar Starlink en una sola casa no comunica al corregimiento. Falta decidir qué casas se unen entre sí. El programa recibe coordenadas, mide la distancia geodésica de cada par y se queda con un conjunto de enlaces que conecta todos los puntos, sin ciclos, y con la menor longitud total.</p>
+<p>La casa principal es el único punto confirmado. Sale de Google Earth: 10°06'56,56" N y 74°55'28,23" O, a 11 m de elevación. La zona se toma como punto de partida porque el mapa de cobertura de Starlink (SpaceX) muestra servicio ahí. Los otros 23 puntos son una red de prueba alrededor de ese origen: 3 repetidores, 12 viviendas del núcleo y 8 viviendas alejadas. No son un censo casa por casa.</p>
+
+<h2>2. Recorrido, en el orden en que corre el programa</h2>
+<ol>
+  <li><b>Vértices.</b> Lee la casa principal y los desplazamientos en metros al este y al norte. Archivo: src/data/community.ts.</li>
+  <li><b>Distancia.</b> Mide cada par con Haversine. Archivo: src/math/spatial.ts, función geodesicDistanceMeters.</li>
+  <li><b>Medio.</b> Si la distancia es de hasta 100 m, el enlace es cable UTP. Si pasa de 100 m, es un radio de 5 GHz. Función selectLink.</li>
+  <li><b>Árbol.</b> Kruskal o Prim eligen 23 enlaces: la red conexa más corta. Archivos kruskal.ts y prim.ts.</li>
+  <li><b>Camino.</b> Si se elige una vivienda, Dijkstra marca cómo llegar desde la antena. Archivo dijkstra.ts.</li>
+</ol>
+<p>No hay una tabla de distancias escrita a mano. Si se agrega una casa con un clic en el mapa, los pasos 2 a 5 se vuelven a correr.</p>
+
+<h2>3. Mapa de archivos</h2>
+<table>
+  <tr><th>Archivo</th><th>Modelo que aplica</th></tr>
+  <tr><td>src/data/community.ts</td><td>El conjunto V. 24 puntos. Solo la casa principal está confirmada.</td></tr>
+  <tr><td>src/math/spatial.ts</td><td>Haversine, umbral de 100 m y la penalización que usa Dijkstra.</td></tr>
+  <tr><td>src/math/graph.ts</td><td>Arma E (276 aristas), la matriz y la lista de adyacencia.</td></tr>
+  <tr><td>src/math/kruskal.ts</td><td>Árbol de expansión mínima. Union-Find para no cerrar ciclos.</td></tr>
+  <tr><td>src/math/prim.ts</td><td>El mismo árbol, creciendo desde la antena.</td></tr>
+  <tr><td>src/math/heap.ts</td><td>Cola de prioridad. La usan Prim y Dijkstra para sacar siempre el menor.</td></tr>
+  <tr><td>src/math/dijkstra.ts</td><td>Camino de menor penalización desde la casa principal.</td></tr>
+  <tr><td>src/context/NetworkContext.tsx</td><td>Llama a los tres algoritmos. El mapa y el diagrama solo leen el resultado.</td></tr>
+  <tr><td>src/components/map/CoverageMap.tsx</td><td>Dibuja puntos y aristas del árbol sobre la imagen satelital.</td></tr>
+  <tr><td>src/components/topology/TopologyView.tsx</td><td>Muestra el mismo árbol como diagrama de nodos.</td></tr>
+  <tr><td>src/components/academic/AcademicModal.tsx</td><td>Muestra |V|, |E|, la matriz y la lista del árbol.</td></tr>
+</table>
+<div class="warn"><b>Qué no es el modelo.</b> Pagos, códigos QR y tickets de soporte no entran en el grafo. Están en src/lib/voucher.ts y en src/components/portal/. El documento del curso y el programa cuentan la misma historia solo en la parte de distancias, árbol y camino.</div>
+
+<h2>4. Vértices: el conjunto V</h2>
+<p>Archivo <b>src/data/community.ts</b>. La casa principal se llama gw-principal. Su coordenada se escribe en grados decimales a partir de grados, minutos y segundos. El resto de viviendas no trae latitud propia: cada una tiene un desplazamiento east (metros al este) y north (metros al norte). La función offsetMeters, en spatial.ts, convierte ese desplazamiento en una coordenada. Si el desplazamiento es cero, el punto sigue siendo la casa principal.</p>
+<pre>// community.ts
+// Único punto confirmado. Sale del placemark de Google Earth.
+export const CONFIRMED_CENTROID = {
+  lat: 10 + 6 / 60 + 56.56 / 3600,      // 10°06'56,56" N
+  lng: -(74 + 55 / 60 + 28.23 / 3600),  // 74°55'28,23" O
+};
+
+export const GATEWAY_ID = "gw-principal";
+
+// Cada vivienda de prueba es un borrador: metros al este y al norte.
+// materializeCommunity() llama a offsetMeters y produce los 24 vértices.
+// 1 antena + 3 repetidores + 20 viviendas = |V| = 24.</pre>
+<p>Los tres repetidores quedan así, medidos desde la casa principal: 55 m al norte; 60 m al este y 10 m al sur; 45 m al oeste y 35 m al sur. Las 12 viviendas del núcleo están a menos de 50 m. Las 8 periféricas están entre 190 m y 221 m. Esas cifras son la forma de la red de prueba, no un levantamiento.</p>
+<pre>// spatial.ts — pasa de "tantos metros al este y al norte" a latitud y longitud
+export function offsetMeters(origin, eastMeters, northMeters) {
+  const distanceMeters = Math.hypot(eastMeters, northMeters);
+  if (distanceMeters === 0) return origin;          // la casa principal
+  const bearing = Math.atan2(eastMeters, northMeters) * 180 / Math.PI;
+  // destination avanza esa distancia sobre la esfera, desde el origen
+  return destino(origin, distanceMeters, bearing);
+}</pre>
+
+<h2>5. Distancia: el peso w(e) = d(e)</h2>
+<p>Archivo <b>src/math/spatial.ts</b>. La distancia no se lee en línea recta sobre el dibujo. geodesicDistanceMeters pide a la librería Turf la fórmula de Haversine sobre la esfera. El resultado queda en metros. Esa longitud es el peso con el que se compara un enlace contra otro.</p>
+<pre>// spatial.ts — d(u, v) en metros. No es distancia del plano del mapa.
+export function geodesicDistanceMeters(a, b) {
+  return distance(
+    point([a.lng, a.lat]),
+    point([b.lng, b.lat]),
+    { units: "meters" }
+  );
+}</pre>
+<p>La misma distancia decide el medio. Ethernet de exteriores, en el criterio del programa, se usa hasta 100 m. Pasado ese valor, el tramo se marca como radio de 5 GHz. selectLink no inventa otra medida: solo clasifica d(e).</p>
+<pre>// spatial.ts
+export const UTP_MAX_METERS = 100;
+
+export function selectLink(distanceMeters) {
+  if (distanceMeters &lt;= 100) {
+    return { type: "utp_outdoor", wireless: false };  // cable
+  }
+  return { type: "ptp_5ghz", wireless: true };        // radio
+}</pre>
+<div class="note">El archivo también calcula un costo en pesos: 1.200 COP por metro de cable, y 280.000 COP fijos si el enlace es radio. Kruskal ordena primero por ese costo y, si empatan, por la distancia. En esta red todo cable es más corto que todo radio, así que el árbol que sale es el de menor longitud. El costo es una lectura posterior, por si el modelo pasa a un presupuesto. No es la pregunta del curso.</div>
+<p>Dijkstra no usa ese costo. Usa attenuationUnits, una penalización que también crece con los metros. En cable suma 0,04 por metro. En radio suma 12 por el salto y después 0,02 por metro. Un cable de 23 m queda cerca de 0,9. Un radio de 190 m queda cerca de 15,8. No es una medición de señal en campo: sirve para comparar caminos dentro del programa.</p>
+<pre>// spatial.ts — peso del camino. Sigue siendo función de la distancia.
+export function attenuationUnits(edge) {
+  if (edge.type === "ptp_5ghz") {
+    return 12 + edge.distanceMeters * 0.02;   // radio
+  }
+  if (edge.type === "fiber") {
+    return 0.5 + edge.distanceMeters * 0.005; // la malla generada no produce fibra
+  }
+  return edge.distanceMeters * 0.04;          // cable UTP
+}</pre>
+
+<h2>6. El grafo G = (V, E)</h2>
+<p>Archivo <b>src/math/graph.ts</b>. buildCandidateEdges une todos los pares de vértices. No descarta un enlace antes de medirlo, porque podría ser el tramo corto que conecta un grupo. Con 24 vértices el número de aristas es el de un grafo completo:</p>
+<p>|E| = 24 × 23 / 2 = 276.</p>
+<p>De esas 276, 124 quedan en cable (100 m o menos) y 152 quedan en radio.</p>
+<pre>// graph.ts — malla candidata. Cada par se mide y se clasifica.
+export function buildCandidateEdges(nodes) {
+  const edges = [];
+  for (let i = 0; i &lt; nodes.length; i++) {
+    for (let j = i + 1; j &lt; nodes.length; j++) {
+      const distanceMeters = geodesicDistanceMeters(nodes[i], nodes[j]);
+      const link = selectLink(distanceMeters);
+      edges.push({
+        id: [nodes[i].id, nodes[j].id].sort().join("__"),
+        source: nodes[i].id,
+        target: nodes[j].id,
+        distanceMeters,          // este es el peso que importa
+        type: link.type,         // "utp_outdoor" o "ptp_5ghz"
+        costCOP: link.costCOP,   // lectura en pesos, no el objetivo
+        inMST: false             // todavía no se sabe si entra al árbol
+      });
+    }
+  }
+  return edges;
+}</pre>
+<p>La clase RuralGraph ofrece dos vistas del mismo grafo, que es lo que pide la teoría del curso:</p>
+<ul>
+  <li><b>Lista de adyacencia.</b> Para cada vértice, la lista de vecinos y la arista que los une. Prim y Dijkstra recorren esta lista.</li>
+  <li><b>Matriz de adyacencia.</b> Una tabla de 24 × 24. La casilla (i, j) guarda la distancia entre esos dos vértices. La diagonal es 0 porque no hay lazo. La matriz es simétrica: ir de A a B mide lo mismo que ir de B a A. El panel «Modelo matemático» la muestra.</li>
+</ul>
+<p>maxPortsFor limita cuántos enlaces del árbol puede recibir un equipo: 8 en la antena y en cada repetidor, 4 en cada vivienda. En la red de prueba el árbol no llena ese cupo: la casa principal queda con grado 2 y ninguna vivienda pasa de grado 3. Si el cupo fuera menor, la regla que salta la arista ya no garantiza el árbol más corto.</p>
+<pre>// graph.ts — tope de puertos. No cambia la distancia; limita el grado.
+export function maxPortsFor(node) {
+  if (node.type === "gateway") return 8;   // casa principal
+  if (node.type === "repeater") return 8;
+  return 4;                                 // vivienda
+}</pre>
+<p>summarizeEdges suma, de un conjunto de aristas, tres cosas: cuántas son, cuántos metros miden en total y cuánto sumarían en pesos. countComponents dice si esas aristas dejan la red en una sola pieza o en varias. El árbol válido de esta red deja una sola componente.</p>
+
+<h2>7. Kruskal: el árbol de menor longitud</h2>
+<p>Archivo <b>src/math/kruskal.ts</b>. Un árbol de 24 vértices tiene 23 aristas, conecta todos los puntos y no tiene ciclos. Entre todos esos árboles, Kruskal busca el de menor longitud total. El problema, escrito corto, es:</p>
+<p>T* = el árbol T que minimiza la suma de d(e), con e en T.</p>
+<p>El algoritmo ordena las 276 aristas de menor a mayor. Recorre la lista una sola vez. Una arista entra si sus dos extremos siguen en grupos distintos. Si ya están en el mismo grupo, la arista cierra un ciclo y se descarta. Esa es la propiedad de ciclo: en un ciclo, el lado más largo no hace falta para el árbol mínimo, porque se puede reemplazar por otro lado del ciclo y la suma baja.</p>
+<pre>// kruskal.ts — ordenar y aceptar solo si no hay ciclo
+const sorted = [...edges].sort((a, b) =&gt;
+  a.costCOP - b.costCOP ||                 // entre cables, esto sigue a los metros
+  a.distanceMeters - b.distanceMeters ||   // desempate: la más corta
+  a.id.localeCompare(b.id)                 // desempate final, para que no cambie
+);
+
+const sets = new DisjointSet(nodeIds.length);  // un grupo por vértice
+const chosen = [];
+
+for (const edge of sorted) {
+  const left = index.get(edge.source);
+  const right = index.get(edge.target);
+
+  // Propiedad de ciclo: si ya están unidos, esta arista sobra.
+  if (sets.find(left) === sets.find(right)) continue;
+
+  // Tope de puertos, solo si está activado. Si no, esta parte no corre.
+  if (options?.maxDegree) {
+    if (degree.get(edge.source) &gt;= limit(edge.source)) continue;
+    if (degree.get(edge.target) &gt;= limit(edge.target)) continue;
+  }
+
+  sets.union(left, right);                 // fusiona los dos grupos
+  chosen.push({ ...edge, inMST: true });  // esta arista sí entra al árbol
+}</pre>
+<p>Ejemplo con datos de la red. La casa principal y la vivienda 01 están a 22,8 m. La vivienda 01 y la vivienda 05 están a 22,8 m. Esas dos entran, porque unen grupos distintos. La casa principal y la vivienda 05 están a 38,0 m en línea directa. Cuando Kruskal llega a esa tercera arista, la vivienda 05 ya está unida a la casa pasando por la vivienda 01, así que los 38,0 m se rechazan. El ciclo casa–01–05 pierde su lado más largo.</p>
+<h3>Union-Find, en el mismo archivo</h3>
+<p>La clase DisjointSet responde una sola pregunta: ¿estos dos puntos ya quedaron en el mismo grupo? Al empezar hay 24 grupos, uno por vértice. Cada vez que una arista entra al árbol, union fusiona dos grupos.</p>
+<ul>
+  <li><b>find.</b> Sube hasta la raíz del grupo. De paso, deja a los vértices apuntando directo a esa raíz (compresión de caminos), para que la próxima consulta sea más corta.</li>
+  <li><b>union.</b> Cuelga el grupo más bajo del más alto (unión por rango). Si los dos tienen la misma altura, uno pasa a ser raíz y su rango sube en uno.</li>
+</ul>
+<p>Kruskal no usa esta estructura para medir. La usa solo para no aceptar un ciclo. El tiempo del algoritmo lo pone el ordenamiento de las 276 aristas: O(|E| log |E|).</p>
+<div class="note">Resultado: 23 aristas y 870,7 m. De esos metros, cerca de 443 m son cable (tramos de 15,3 m a 32,0 m) y cerca de 428 m son tres radios, uno por grupo lejano. La casa principal solo suelta dos cables directos, de 22,8 m y 28,8 m.</div>
+
+<h2>8. Prim: el mismo árbol, creciendo desde la antena</h2>
+<p>Archivo <b>src/math/prim.ts</b>. Prim no ordena toda la lista de entrada. Hace crecer un solo árbol desde la casa principal, que es el único equipo ya decidido. En cada paso toma la arista más corta que sale de lo ya conectado hacia un vértice que todavía está fuera. Esa es la propiedad de corte: a través del corte entre lo alcanzado y lo que falta, una arista de longitud mínima pertenece a algún árbol mínimo.</p>
+<pre>// prim.ts — inTree empieza solo con la antena
+export function primMST(nodes, edges, startId, maxDegree) {
+  const adjacent = new RuralGraph(nodes, edges).adjacencyList();
+  const inTree = new Set([startId]);     // startId = "gw-principal"
+  const heap = new MinHeap(/* compara por costo y luego por metros */);
+
+  function pushFrom(id) {
+    for (const link of adjacent.get(id) ?? []) {
+      if (!inTree.has(link.neighborId)) {
+        heap.push({ edge: link.edge, next: link.neighborId });
+      }
+    }
+  }
+
+  pushFrom(startId);  // entran a la cola las aristas que salen de la casa principal
+  const chosen = [];
+
+  while (heap.size &gt; 0 &amp;&amp; inTree.size &lt; nodes.length) {
+    const item = heap.pop();                 // la más corta que cruza el corte
+    if (!item || inTree.has(item.next)) continue;
+
+    inTree.add(item.next);                    // esa casa ya quedó en el árbol
+    chosen.push({ ...item.edge, inMST: true });
+    pushFrom(item.next);                      // ahora se ofrecen las aristas de esa casa
+  }
+  return chosen;
+}</pre>
+<p>La cola es el montículo de <b>src/math/heap.ts</b>. Siempre entrega el menor. El programa no hace decrease-key: si una arista mejora, entra otra copia y la copia vieja se ignora al salir. Por eso el costo de tiempo sigue en O(|E| log |E|).</p>
+<p>La primera arista de toda la malla mide 15,3 m y une el repetidor norte con la vivienda 06. Kruskal la acepta de entrada. Prim, como arranca en la antena, todavía no la ve. La arista más corta que sale de la casa principal mide 22,8 m y llega a la vivienda 01: esa es la primera del árbol de Prim. El orden de aceptación cambia. La longitud total no: en este grafo conexo los dos algoritmos dan 870,7 m y 23 aristas.</p>
+<p>En la pantalla se puede cambiar de Kruskal a Prim. NetworkContext elige la función. Sin tope de puertos, las dos longitudes coinciden.</p>
+
+<h2>9. Dijkstra: el camino desde la casa principal</h2>
+<p>Archivo <b>src/math/dijkstra.ts</b>. El árbol dice qué enlaces se construyen. Otra pregunta es cómo se llega, desde la antena, hasta la vivienda que se eligió. Dijkstra resuelve el camino de menor peso cuando todos los pesos son positivos. Aquí el origen es gw-principal y el peso de cada arista es attenuationUnits, no el costo en pesos.</p>
+<pre>// dijkstra.ts
+export function dijkstra(nodes, edges, sourceId, weight) {
+  const adjacent = new RuralGraph(nodes, edges).adjacencyList();
+  const dist = new Map();   // penalización acumulada desde la antena
+  const prev = new Map();   // de qué casa se llegó, y por cuál arista
+
+  for (const node of nodes) {
+    dist.set(node.id, Infinity);
+    prev.set(node.id, null);
+  }
+  dist.set(sourceId, 0);     // la casa principal parte en 0
+  const heap = new MinHeap((a, b) =&gt; a.d &lt; b.d);
+  heap.push({ id: sourceId, d: 0 });
+
+  while (heap.size &gt; 0) {
+    const current = heap.pop();
+    // Si esta copia de la cola ya quedó vieja, se ignora.
+    if (current.d &gt; dist.get(current.id)) continue;
+
+    for (const link of adjacent.get(current.id) ?? []) {
+      const next = current.d + weight(link.edge);  // suma la penalización del tramo
+      if (next &lt; dist.get(link.neighborId)) {
+        dist.set(link.neighborId, next);
+        prev.set(link.neighborId, {
+          nodeId: current.id,
+          edgeId: link.edge.id
+        });
+        heap.push({ id: link.neighborId, d: next });
+      }
+    }
+  }
+  return { dist, prev };
+}</pre>
+<p>Como la penalización es positiva, la primera vez que una vivienda sale de la cola su valor queda fijo. No hace falta volver a calcularla. reconstructPath sigue los predecesores desde la vivienda hasta la antena y da la lista de casas. pathEdges da la lista de aristas de ese mismo camino. El tiempo, con el montículo y copias repetidas, es O((|V| + |E|) log |V|).</p>
+<div class="warn"><b>Dijkstra no recorre solo el árbol.</b> En NetworkContext se llama con las 276 aristas candidatas, no con las 23 del árbol. Por eso el camino marcado hasta una vivienda lejana puede ser el radio directo, aunque ese radio no esté en el árbol. El árbol prefiere un solo radio por grupo, porque así la suma de metros es menor. El camino de menor penalización prefiere no atravesar varias casas si un salto directo suma menos. Las dos cuentas usan la distancia. No responden la misma pregunta, y la pantalla las muestra por separado: el árbol en el mapa, y el camino cuando se toca una vivienda.</div>
+<p>Ejemplo. La vivienda alejada que está a 190,2 m de la antena obtiene, por el radio directo, 12 + 0,02 × 190,2 = 15,8. El camino por el árbol es más largo en esa penalización, porque primero recorre el núcleo y después cruza un solo radio de grupo. Para decidir qué enlaces existen, manda el árbol. Dijkstra sirve para no presentar ese árbol como si también fuera el camino de menor penalización.</p>
+
+<h2>10. Dónde se juntan los tres algoritmos</h2>
+<p>Archivo <b>src/context/NetworkContext.tsx</b>. Es el único sitio que encadena el modelo. El mapa, el diagrama y el panel académico no vuelven a medir: leen lo que este archivo ya calculó.</p>
+<pre>// NetworkContext.tsx — este es el puente entre la matemática y la pantalla
+
+// 1. Vértices: casa principal + red de prueba + casas agregadas con un clic.
+const nodes = aplicarEstados([...BASE_NODES, ...extraNodes]);
+
+// 2 y 3. Distancias y medio. Sale la malla de 276 aristas.
+const candidate = buildCandidateEdges(nodes);
+
+// 4. Árbol. El usuario puede pedir Kruskal o Prim.
+//    limit solo existe si está activado el tope de puertos.
+const mstEdges = algorithm === "prim"
+  ? primMST(nodes, candidate, "gw-principal", limit)
+  : kruskalMST(ids, candidate, limit ? { maxDegree: limit } : undefined);
+
+// Marca inMST en las aristas que el árbol aceptó.
+const edges = candidate.map(edge =&gt; ({
+  ...edge,
+  inMST: chosen.has(edge.id)
+}));
+
+// 5. Camino, solo si hay una vivienda seleccionada distinta de la antena.
+const result = dijkstra(nodes, candidate, "gw-principal", attenuationUnits);
+const nodeIds = reconstructPath(result, vivienda.id);
+const edgeIds = pathEdges(result, vivienda.id);
+
+// Distancia directa a la casa principal, en metros, sin pasar por otras casas.
+const distanceToGateway = geodesicDistanceMeters(gateway, vivienda);</pre>
+<p>Después de eso, tres pantallas muestran el mismo resultado:</p>
+<ol>
+  <li><b>CoverageMap.tsx.</b> Dibuja los puntos sobre la imagen satelital y las líneas del árbol. Al tocar una vivienda muestra la distancia directa a la casa principal y el camino de Dijkstra.</li>
+  <li><b>TopologyView.tsx.</b> Muestra el mismo árbol como diagrama de nodos, con el grado y el tope de puertos de cada uno.</li>
+  <li><b>AcademicModal.tsx.</b> Muestra cuántos vértices hay, cuántas aristas tiene la malla, cuántas tiene el árbol, la matriz y la lista de vecinos del árbol.</li>
+</ol>
+<p>Agregar una casa (addHouse) crea un vértice nuevo con la coordenada del clic, lo guarda y deja que buildCandidateEdges vuelva a medir. La lógica no se reescribe: cambian las coordenadas.</p>
+
+<h2>11. Qué números devuelve la red de prueba</h2>
+<table>
+  <tr><th>Red</th><th>Aristas</th><th>Longitud</th><th>Qué es</th></tr>
+  <tr><td>Malla completa</td><td>276</td><td>40.355,8 m</td><td>Todos los pares. No es un diseño: cuenta radios que nadie tendería juntos.</td></tr>
+  <tr><td>Estrella desde la casa principal</td><td>23</td><td>2.247,4 m</td><td>Un enlace directo de la antena a cada punto.</td></tr>
+  <tr><td>Árbol de Kruskal y de Prim</td><td>23</td><td>870,7 m</td><td>La red conexa más corta. 61,3 % menos metros que la estrella.</td></tr>
+</table>
+<p>Los tres radios del árbol no salen de la antena. Salen del borde de cada grupo, que es el salto más corto para engancharlo:</p>
+<table>
+  <tr><th>Grupo</th><th>Repetidor hasta la casa principal</th><th>Radio del árbol</th></tr>
+  <tr><td>Norte</td><td>55,0 m</td><td>135,2 m</td></tr>
+  <tr><td>Este</td><td>60,8 m</td><td>135,8 m</td></tr>
+  <tr><td>Suroeste</td><td>57,0 m</td><td>157,0 m</td></tr>
+</table>
+<p>Dentro de cada grupo el resto es cable, porque esas distancias quedan bajo 100 m. La vivienda más cercana a la antena está a 22,8 m. La más lejana de la red de prueba está a 221,1 m. Esas dos cifras son distancias directas. No son el camino por el árbol.</p>
+
+<h2>12. Cómo contarlo en la sustentación</h2>
+<ol>
+  <li>El problema es llevar la señal desde la casa principal hasta las otras viviendas de Guaquirí. La cobertura de Starlink justifica la antena en esa casa. Google Earth da la coordenada.</li>
+  <li>El programa arma un grafo de 24 vértices y 276 aristas. El peso de cada arista es su distancia en metros.</li>
+  <li>Hasta 100 m el enlace es cable. Después es radio. Eso clasifica el medio; no reemplaza la distancia.</li>
+  <li>Kruskal y Prim construyen el árbol de menor longitud: 23 aristas y 870,7 m. Kruskal ordena todas las aristas. Prim crece desde la antena. En esta red la longitud coincide.</li>
+  <li>Dijkstra, con una penalización que crece con los metros, muestra el camino desde la casa principal hasta la vivienda que se toca. Corre sobre toda la malla, así que ese camino no tiene que ser el del árbol.</li>
+  <li>Si más adelante se reemplazan las 23 casas de prueba por un levantamiento, se cambian las coordenadas. Kruskal, Prim y Dijkstra se quedan igual.</li>
+</ol>
+
+</body>
+</html>
